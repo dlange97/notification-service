@@ -1,0 +1,78 @@
+{
+  "name": "mydashboard/notification-service",
+  "description": "Notification manager microservice for MyDashboard (inbox + templates)",
+  "type": "project",
+  "license": "proprietary",
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "require": {
+    "php": ">=8.3",
+    "ext-ctype": "*",
+    "ext-iconv": "*",
+    "ext-intl": "*",
+    "ext-pdo_mysql": "*",
+    "doctrine/dbal": "^4.2",
+    "doctrine/doctrine-bundle": "^2.13",
+    "doctrine/doctrine-migrations-bundle": "^3.4",
+    "doctrine/instantiator": "^1.5",
+    "doctrine/orm": "^3.3",
+    "lexik/jwt-authentication-bundle": "^3.1",
+    "nelmio/cors-bundle": "^2.5",
+    "symfony/console": "^7.2",
+    "symfony/dotenv": "^7.2",
+    "symfony/expression-language": "^7.2",
+    "symfony/flex": "^2.4",
+    "symfony/framework-bundle": "^7.2",
+    "symfony/runtime": "^7.2",
+    "symfony/security-bundle": "^7.2",
+    "symfony/twig-bundle": "^7.2",
+    "symfony/uid": "^7.2",
+    "symfony/validator": "^7.2",
+    "symfony/yaml": "^7.2"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.0",
+    "symfony/debug-bundle": "^7.2",
+    "symfony/maker-bundle": "^1.62",
+    "symfony/phpunit-bridge": "^7.2",
+    "symfony/web-profiler-bundle": "^7.2"
+  },
+  "config": {
+    "allow-plugins": {
+      "symfony/flex": true,
+      "symfony/runtime": true
+    },
+    "sort-packages": true,
+    "audit": {
+      "block-insecure": false
+    }
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "App\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "auto-scripts": {
+      "cache:clear": "symfony-cmd",
+      "assets:install %PUBLIC_DIR%": "symfony-cmd"
+    },
+    "post-install-cmd": [
+      "@auto-scripts"
+    ],
+    "post-update-cmd": [
+      "@auto-scripts"
+    ]
+  },
+  "extra": {
+    "symfony": {
+      "allow-contrib": false,
+      "require": "7.2.*"
+    }
+  }
+}

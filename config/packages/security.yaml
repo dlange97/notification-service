@@ -1,0 +1,36 @@
+security:
+  providers:
+    jwt:
+      lexik_jwt:
+        class: App\Security\JwtUser
+
+  firewalls:
+    dev:
+      pattern: ^/(_(profiler|wdt)|css|images|js)/
+      security: false
+
+    health:
+      pattern: ^/api/health$
+      security: false
+
+    api:
+      pattern: ^/api/
+      stateless: true
+      provider: jwt
+      jwt: ~
+
+  access_control:
+    - { path: ^/api/health, roles: PUBLIC_ACCESS }
+    - { path: ^/api/notifications/internal, roles: PUBLIC_ACCESS }
+    - {
+        path: ^/api/notifications/settings,
+        methods: [GET, PUT, PATCH],
+        allow_if: "user and 'settings.view' in user.getPermissions()",
+      }
+    - {
+        path: ^/api/notifications/inbox,
+        methods: [GET, PATCH],
+        roles: ROLE_USER,
+      }
+    - { path: ^/api/notifications, roles: ROLE_USER }
+    - { path: ^/api/, roles: ROLE_USER }
