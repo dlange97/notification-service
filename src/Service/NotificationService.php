@@ -14,6 +14,7 @@ class NotificationService
     public function __construct(
         private readonly NotificationTemplateRepository $templateRepository,
         private readonly InboxNotificationRepository $inboxRepository,
+        private readonly RequestAccessTemplateUpdater $requestAccessTemplateUpdater,
     ) {
     }
 
@@ -36,78 +37,7 @@ class NotificationService
     {
         $template = $this->getOrCreateRequestAccessTemplate();
 
-        if (isset($payload['channels']) && is_array($payload['channels'])) {
-            $channels = $payload['channels'];
-
-            if (isset($channels['inbox']) && is_array($channels['inbox'])) {
-                $inbox = $channels['inbox'];
-                if (array_key_exists('enabled', $inbox)) {
-                    $template->setInboxEnabled((bool) $inbox['enabled']);
-                }
-                if (array_key_exists('title', $inbox) && is_string($inbox['title'])) {
-                    $template->setInboxTitle(trim($inbox['title']) ?: $template->getInboxTitle());
-                }
-                if (array_key_exists('body', $inbox) && is_string($inbox['body'])) {
-                    $template->setInboxBody(trim($inbox['body']) ?: $template->getInboxBody());
-                }
-            }
-
-            if (isset($channels['email']) && is_array($channels['email'])) {
-                $email = $channels['email'];
-                if (array_key_exists('enabled', $email)) {
-                    $template->setEmailEnabled((bool) $email['enabled']);
-                }
-                if (array_key_exists('title', $email) && is_string($email['title'])) {
-                    $template->setEmailTitle(trim($email['title']));
-                }
-                if (array_key_exists('body', $email) && is_string($email['body'])) {
-                    $template->setEmailBody(trim($email['body']));
-                }
-            }
-
-            if (isset($channels['push']) && is_array($channels['push'])) {
-                $push = $channels['push'];
-                if (array_key_exists('enabled', $push)) {
-                    $template->setPushEnabled((bool) $push['enabled']);
-                }
-                if (array_key_exists('title', $push) && is_string($push['title'])) {
-                    $template->setPushTitle(trim($push['title']));
-                }
-                if (array_key_exists('body', $push) && is_string($push['body'])) {
-                    $template->setPushBody(trim($push['body']));
-                }
-            }
-        }
-
-        if (array_key_exists('inboxEnabled', $payload)) {
-            $template->setInboxEnabled((bool) $payload['inboxEnabled']);
-        }
-        if (array_key_exists('inboxTitle', $payload) && is_string($payload['inboxTitle'])) {
-            $template->setInboxTitle(trim($payload['inboxTitle']) ?: $template->getInboxTitle());
-        }
-        if (array_key_exists('inboxBody', $payload) && is_string($payload['inboxBody'])) {
-            $template->setInboxBody(trim($payload['inboxBody']) ?: $template->getInboxBody());
-        }
-
-        if (array_key_exists('emailEnabled', $payload)) {
-            $template->setEmailEnabled((bool) $payload['emailEnabled']);
-        }
-        if (array_key_exists('emailTitle', $payload) && is_string($payload['emailTitle'])) {
-            $template->setEmailTitle(trim($payload['emailTitle']));
-        }
-        if (array_key_exists('emailBody', $payload) && is_string($payload['emailBody'])) {
-            $template->setEmailBody(trim($payload['emailBody']));
-        }
-
-        if (array_key_exists('pushEnabled', $payload)) {
-            $template->setPushEnabled((bool) $payload['pushEnabled']);
-        }
-        if (array_key_exists('pushTitle', $payload) && is_string($payload['pushTitle'])) {
-            $template->setPushTitle(trim($payload['pushTitle']));
-        }
-        if (array_key_exists('pushBody', $payload) && is_string($payload['pushBody'])) {
-            $template->setPushBody(trim($payload['pushBody']));
-        }
+        $this->requestAccessTemplateUpdater->update($template, $payload);
 
         $this->templateRepository->save($template, true);
 
@@ -151,6 +81,44 @@ class NotificationService
         return $created;
     }
 
+    public function createInboxNotification(array $data): InboxNotification
+    {
+        $notification = new InboxNotification();
+        $notification
+            ->setRecipientUserId((string) ($data['recipientUserId'] ?? ''))
+            ->setRecipientEmail((string) ($data['recipientEmail'] ?? ''))
+            ->setType((string) ($data['type'] ?? 'request-access'))
+            ->setTitle((string) ($data['title'] ?? 'Request access'))
+            ->setBody((string) ($data['body'] ?? 'User requested access.'))
+            ->setPayload($data['payload'] ?? null);
+
+        $this->inboxRepository->save($notification, true);
+
+        return $notification;
+    }
+
+    public function updateInboxNotification(InboxNotification $notification, array $data): InboxNotification
+    {
+        if (isset($data['title'])) {
+            $notification->setTitle((string) $data['title']);
+        }
+        if (isset($data['body'])) {
+            $notification->setBody((string) $data['body']);
+        }
+        if (isset($data['payload'])) {
+            $notification->setPayload($data['payload']);
+        }
+
+        $this->inboxRepository->save($notification, true);
+
+        return $notification;
+    }
+
+    public function deleteInboxNotification(InboxNotification $notification): void
+    {
+        $this->inboxRepository->remove($notification, true);
+    }
+
     /** @return array<int, array<string, mixed>> */
     public function getInboxForUser(string $userId, int $limit = 50): array
     {
@@ -161,6 +129,11 @@ class NotificationService
     public function countUnreadForUser(string $userId): int
     {
         return $this->inboxRepository->countUnreadByUser($userId);
+    }
+
+    public function clearInboxForUser(string $userId): int
+    {
+        return $this->inboxRepository->deleteAllByUser($userId);
     }
 
     public function markAsRead(InboxNotification $notification): InboxNotification

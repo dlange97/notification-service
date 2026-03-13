@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route('/api/notifications/internal', name: 'api_notifications_internal_')]
+#[Route('/notification/internal', name: 'notification_internal_')]
 class InternalNotificationController extends AbstractController
 {
     public function __construct(

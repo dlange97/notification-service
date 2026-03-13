@@ -1,0 +1,9 @@
+notification_api_doc_json:
+  path: /notification/docs.json
+  methods: [GET]
+  defaults: { _controller: nelmio_api_doc.controller.swagger, area: default }
+
+notification_api_doc_ui:
+  path: /notification/docs
+  methods: [GET]
+  defaults: { _controller: nelmio_api_doc.controller.swagger_ui, area: default }
