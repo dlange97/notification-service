@@ -2,7 +2,7 @@ security:
   providers:
     jwt:
       lexik_jwt:
-        class: App\Security\JwtUser
+        class: MyDashboard\Shared\Security\JwtUser
 
   firewalls:
     dev:
