@@ -9,3 +9,10 @@ services:
       - "../src/DependencyInjection/"
       - "../src/Entity/"
       - "../src/Kernel.php"
+
+  App\Service\RequestAccessTemplateUpdater:
+    arguments:
+      $channelUpdaters:
+        - '@App\Service\TemplateUpdate\InboxTemplateChannelUpdater'
+        - '@App\Service\TemplateUpdate\EmailTemplateChannelUpdater'
+        - '@App\Service\TemplateUpdate\PushTemplateChannelUpdater'

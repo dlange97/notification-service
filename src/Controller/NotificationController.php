@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\InboxNotification;
-use App\Security\JwtUser;
+use MyDashboard\Shared\Security\JwtUser;
 use App\Service\NotificationService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route('/api/notifications', name: 'api_notifications_')]
+#[Route('/notification', name: 'notification_')]
 class NotificationController extends AbstractController
 {
     public function __construct(private readonly NotificationService $notificationService)
@@ -44,6 +43,14 @@ class NotificationController extends AbstractController
         return $this->json($this->notificationService->serializeInbox($saved));
     }
 
+    #[Route('/inbox', name: 'inbox_clear', methods: ['DELETE'])]
+    public function clearInbox(): JsonResponse
+    {
+        $this->notificationService->clearInboxForUser($this->getOwnerId());
+
+        return $this->json(null, 204);
+    }
+
     #[Route('/settings/template/request-access', name: 'request_access_template_get', methods: ['GET'])]
     public function getRequestAccessTemplate(): JsonResponse
     {
@@ -58,6 +65,49 @@ class NotificationController extends AbstractController
         $template = $this->notificationService->updateRequestAccessTemplate($payload);
 
         return $this->json($this->notificationService->serializeTemplate($template));
+    }
+
+    #[Route('/inbox', name: 'inbox_create', methods: ['POST'])]
+    public function createInboxNotification(Request $request): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true) ?? [];
+        $ownerId = $this->getOwnerId();
+
+        $notification = $this->notificationService->createInboxNotification([
+            'recipientUserId' => $ownerId,
+            'recipientEmail' => $data['recipientEmail'] ?? 'user@example.com',
+            'type' => $data['type'] ?? 'request-access',
+            'title' => $data['title'] ?? 'Request access',
+            'body' => $data['body'] ?? 'User requested access.',
+            'payload' => $data['payload'] ?? null,
+        ]);
+
+        return $this->json($this->notificationService->serializeInbox($notification), 201);
+    }
+
+    #[Route('/inbox/{id}', name: 'inbox_update', methods: ['PUT'])]
+    public function updateInboxNotification(Request $request, InboxNotification $notification): JsonResponse
+    {
+        if ($notification->getRecipientUserId() !== $this->getOwnerId()) {
+            throw $this->createAccessDeniedException('You do not own this notification.');
+        }
+
+        $data = json_decode($request->getContent(), true) ?? [];
+        $updated = $this->notificationService->updateInboxNotification($notification, $data);
+
+        return $this->json($this->notificationService->serializeInbox($updated));
+    }
+
+    #[Route('/inbox/{id}', name: 'inbox_delete', methods: ['DELETE'])]
+    public function deleteInboxNotification(InboxNotification $notification): JsonResponse
+    {
+        if ($notification->getRecipientUserId() !== $this->getOwnerId()) {
+            throw $this->createAccessDeniedException('You do not own this notification.');
+        }
+
+        $this->notificationService->deleteInboxNotification($notification);
+
+        return $this->json(null, 204);
     }
 
     private function getOwnerId(): string

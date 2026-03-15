@@ -2,7 +2,7 @@ security:
   providers:
     jwt:
       lexik_jwt:
-        class: App\Security\JwtUser
+        class: MyDashboard\Shared\Security\JwtUser
 
   firewalls:
     dev:
@@ -10,27 +10,27 @@ security:
       security: false
 
     health:
-      pattern: ^/api/health$
+      pattern: ^/notification/health$
       security: false
 
     api:
-      pattern: ^/api/
+      pattern: ^/notification/
       stateless: true
       provider: jwt
       jwt: ~
 
   access_control:
-    - { path: ^/api/health, roles: PUBLIC_ACCESS }
-    - { path: ^/api/notifications/internal, roles: PUBLIC_ACCESS }
+    - { path: ^/notification/health, roles: PUBLIC_ACCESS }
+    - { path: ^/notification/docs(?:\.json)?$, roles: PUBLIC_ACCESS }
+    - { path: ^/notification/internal, roles: PUBLIC_ACCESS }
     - {
-        path: ^/api/notifications/settings,
+        path: ^/notification/settings,
         methods: [GET, PUT, PATCH],
         allow_if: "user and 'settings.view' in user.getPermissions()",
       }
     - {
-        path: ^/api/notifications/inbox,
-        methods: [GET, PATCH],
+        path: ^/notification/inbox,
+        methods: [GET, PATCH, DELETE],
         roles: ROLE_USER,
       }
-    - { path: ^/api/notifications, roles: ROLE_USER }
-    - { path: ^/api/, roles: ROLE_USER }
+    - { path: ^/notification, roles: ROLE_USER }

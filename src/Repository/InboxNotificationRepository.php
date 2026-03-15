@@ -44,4 +44,19 @@ class InboxNotificationRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
+
+    public function deleteAllByUser(string $userId): int
+    {
+        return $this->createQueryBuilder('n')
+            ->delete()
+            ->andWhere('n.recipientUserId = :userId')
+            ->setParameter('userId', $userId)
+            ->getQuery()
+            ->execute();
+    }
+
+    public function flush(): void
+    {
+        $this->getEntityManager()->flush();
+    }
 }

@@ -24,4 +24,9 @@ docker compose -f ../../my-dashboard-docker/docker-compose.yml exec -T notificat
 
 # Tests
 docker compose -f ../../my-dashboard-docker/docker-compose.yml exec -T notification-php php bin/phpunit
+
+# Quality checks + coverage gate
+docker compose -f ../../my-dashboard-docker/docker-compose.yml exec -T notification-php composer run quality
 ```
+
+Run quality checks after every code change in this service.
