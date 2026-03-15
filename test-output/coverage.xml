@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1773570939">
-  <project timestamp="1773570939" name="Clover Coverage">
+<coverage generated="1773573708">
+  <project timestamp="1773573708" name="Clover Coverage">
     <package name="App\Controller">
       <file name="/app/src/Controller/HealthController.php">
         <class name="App\Controller\HealthController" namespace="App\Controller">
