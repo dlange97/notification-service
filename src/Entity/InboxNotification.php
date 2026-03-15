@@ -36,6 +36,7 @@ class InboxNotification
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $isRead = false;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $payload = null;
 
@@ -128,11 +129,13 @@ class InboxNotification
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getPayload(): ?array
     {
         return $this->payload;
     }
 
+    /** @param array<string, mixed>|null $payload */
     public function setPayload(?array $payload): static
     {
         $this->payload = $payload;

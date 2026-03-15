@@ -54,4 +54,9 @@ class InboxNotificationRepository extends ServiceEntityRepository
             ->getQuery()
             ->execute();
     }
+
+    public function flush(): void
+    {
+        $this->getEntityManager()->flush();
+    }
 }

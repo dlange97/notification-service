@@ -6,4 +6,6 @@ namespace App\Security;
 
 use MyDashboard\Shared\Security\JwtUser as SharedJwtUser;
 
-class JwtUser extends SharedJwtUser {}
+class JwtUser extends SharedJwtUser
+{
+}

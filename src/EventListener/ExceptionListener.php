@@ -12,4 +12,6 @@ use MyDashboard\Shared\EventListener\ExceptionListener as SharedExceptionListene
  * - 400 for client errors (bad input)
  * - 500 for unexpected errors
  */
-readonly class ExceptionListener extends SharedExceptionListener {}
+readonly class ExceptionListener extends SharedExceptionListener
+{
+}

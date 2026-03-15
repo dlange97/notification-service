@@ -33,6 +33,7 @@ class NotificationService
         return $template;
     }
 
+    /** @param array<string, mixed> $payload */
     public function updateRequestAccessTemplate(array $payload): NotificationTemplate
     {
         $template = $this->getOrCreateRequestAccessTemplate();
@@ -44,7 +45,10 @@ class NotificationService
         return $template;
     }
 
-    /** @param array<int, array{id:string,email:string}> $recipients */
+    /**
+     * @param array<int, array{id:string,email:string}> $recipients
+     * @param array<string, mixed> $requester
+     */
     public function createRequestAccessNotifications(array $recipients, array $requester): int
     {
         $template = $this->getOrCreateRequestAccessTemplate();
@@ -54,10 +58,6 @@ class NotificationService
 
         $created = 0;
         foreach ($recipients as $recipient) {
-            if (!isset($recipient['id'], $recipient['email'])) {
-                continue;
-            }
-
             $notification = new InboxNotification();
             $notification
                 ->setRecipientUserId((string) $recipient['id'])
@@ -75,12 +75,13 @@ class NotificationService
         }
 
         if ($created > 0) {
-            $this->inboxRepository->getEntityManager()->flush();
+            $this->inboxRepository->flush();
         }
 
         return $created;
     }
 
+    /** @param array<string, mixed> $data */
     public function createInboxNotification(array $data): InboxNotification
     {
         $notification = new InboxNotification();
@@ -97,6 +98,7 @@ class NotificationService
         return $notification;
     }
 
+    /** @param array<string, mixed> $data */
     public function updateInboxNotification(InboxNotification $notification, array $data): InboxNotification
     {
         if (isset($data['title'])) {
@@ -185,6 +187,7 @@ class NotificationService
         ];
     }
 
+    /** @param array<string, mixed> $requester */
     private function renderTemplate(string $template, array $requester): string
     {
         $map = [
