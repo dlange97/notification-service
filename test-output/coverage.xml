@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1773576242">
-  <project timestamp="1773576242" name="Clover Coverage">
+<coverage generated="1774123169">
+  <project timestamp="1774123169" name="Clover Coverage">
     <package name="App\Controller">
       <file name="/app/src/Controller/HealthController.php">
         <class name="App\Controller\HealthController" namespace="App\Controller">
@@ -290,14 +290,6 @@
         <metrics loc="33" ncloc="30" classes="1" methods="2" coveredmethods="0" conditionals="0" coveredconditionals="0" statements="6" coveredstatements="0" elements="8" coveredelements="0"/>
       </file>
     </package>
-    <package name="App\Security">
-      <file name="/app/src/Security/JwtUser.php">
-        <class name="App\Security\JwtUser" namespace="App\Security">
-          <metrics complexity="0" methods="0" coveredmethods="0" conditionals="0" coveredconditionals="0" statements="0" coveredstatements="0" elements="0" coveredelements="0"/>
-        </class>
-        <metrics loc="12" ncloc="12" classes="0" methods="0" coveredmethods="0" conditionals="0" coveredconditionals="0" statements="0" coveredstatements="0" elements="0" coveredelements="0"/>
-      </file>
-    </package>
     <package name="App\Service">
       <file name="/app/src/Service/NotificationService.php">
         <class name="App\Service\NotificationService" namespace="App\Service">
@@ -531,6 +523,6 @@
         <metrics loc="17" ncloc="13" classes="0" methods="0" coveredmethods="0" conditionals="0" coveredconditionals="0" statements="0" coveredstatements="0" elements="0" coveredelements="0"/>
       </file>
     </package>
-    <metrics files="20" loc="1135" ncloc="1088" classes="14" methods="90" coveredmethods="26" conditionals="0" coveredconditionals="0" statements="303" coveredstatements="80" elements="393" coveredelements="106"/>
+    <metrics files="19" loc="1123" ncloc="1076" classes="14" methods="90" coveredmethods="26" conditionals="0" coveredconditionals="0" statements="303" coveredstatements="80" elements="393" coveredelements="106"/>
   </project>
 </coverage>
