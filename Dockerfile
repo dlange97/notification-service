@@ -9,19 +9,20 @@ RUN apk add --no-cache icu-dev libzip-dev openssl bash rabbitmq-c rabbitmq-c-dev
     && docker-php-ext-install intl pdo_mysql zip opcache \
     && apk del $PHPIZE_DEPS rabbitmq-c-dev
 
-COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY notification-service/docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
 WORKDIR /app
 
-COPY composer.json composer.lock* ./
-RUN composer install --no-interaction --no-scripts --prefer-dist 2>/dev/null || true
+COPY notification-service/composer.json notification-service/composer.lock* ./
+COPY shared-bundle /shared-bundle
+RUN composer install --no-interaction --no-progress --prefer-dist --optimize-autoloader --no-scripts
 
-COPY . .
+COPY notification-service/ .
 
 RUN mkdir -p config/jwt var/cache var/log \
     && chown -R www-data:www-data var config/jwt
 
-COPY docker/entrypoint.sh /entrypoint.sh
+COPY notification-service/docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 9000
