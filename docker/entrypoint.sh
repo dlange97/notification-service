@@ -24,6 +24,15 @@ echo "=== JWT public key found ==="
 
 cd /app
 
+needs_composer_install() {
+    if [ ! -f vendor/autoload.php ]; then
+        return 0
+    fi
+
+    php -r "require 'vendor/autoload.php';" >/dev/null 2>&1 || return 0
+    return 1
+}
+
 # ── Composer ────────────────────────────────────────────────
 VENDOR_LOCK_DIR=/tmp/notification-vendor-lock
 LOCK_ATTEMPTS=60
@@ -32,7 +41,7 @@ LOCK_DELAY=2
 wait_for_vendor_lock() {
     attempt=1
     while ! mkdir "$VENDOR_LOCK_DIR" 2>/dev/null; do
-        if [ -f vendor/autoload.php ]; then
+        if ! needs_composer_install; then
             return 0
         fi
 
@@ -52,9 +61,9 @@ release_vendor_lock() {
     rmdir "$VENDOR_LOCK_DIR" 2>/dev/null || true
 }
 
-if [ ! -f vendor/autoload.php ]; then
+if needs_composer_install; then
     wait_for_vendor_lock
-    if [ ! -f vendor/autoload.php ]; then
+    if needs_composer_install; then
         echo "Installing dependencies..."
         if ! composer install --no-interaction --optimize-autoloader; then
             release_vendor_lock
