@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Repository\NotificationTemplateRepository;
+use App\Traits\HasInstanceId;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: NotificationTemplateRepository::class)]
@@ -13,6 +14,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\HasLifecycleCallbacks]
 class NotificationTemplate
 {
+    use HasInstanceId;
+
     public const REQUEST_ACCESS_KEY = 'request-access';
 
     #[ORM\Id]
