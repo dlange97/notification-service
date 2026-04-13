@@ -11,8 +11,8 @@ final readonly class InstanceRequestListener extends SharedInstanceRequestListen
     public function __construct()
     {
         parent::__construct([
-            '/notification/health',
-            '/notification/docs',
+            '/notifications/health',
+            '/notifications/docs',
         ]);
     }
 }
