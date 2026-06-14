@@ -21,7 +21,8 @@ security:
 
   access_control:
     - { path: ^/notification/health, roles: PUBLIC_ACCESS }
-    - { path: ^/notification/docs(?:\.json)?$, roles: PUBLIC_ACCESS }
+    - { path: ^/notification/docs(?:\.json)?$, roles: ROLE_ADMIN }
+    - { path: ^/notification/admin/security-log, roles: ROLE_ADMIN }
     - { path: ^/notification/internal, roles: PUBLIC_ACCESS }
     - {
         path: ^/notification/settings,
@@ -34,3 +35,8 @@ security:
         roles: ROLE_USER,
       }
     - { path: ^/notification, roles: ROLE_USER }
+
+when@prod:
+  security:
+    access_control:
+      - { path: ^/, requires_channel: https }

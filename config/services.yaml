@@ -16,6 +16,13 @@ services:
         - '@App\Service\TemplateUpdate\InboxTemplateChannelUpdater'
         - '@App\Service\TemplateUpdate\EmailTemplateChannelUpdater'
         - '@App\Service\TemplateUpdate\PushTemplateChannelUpdater'
+      $payloadNormalizer: '@App\Service\TemplateUpdate\TemplatePayloadNormalizer'
+
+  App\Service\TemplateUpdate\TemplatePayloadNormalizer:
+    arguments:
+      $strategies:
+        - '@App\Service\TemplateUpdate\ChannelsPayloadNormalizerStrategy'
+        - '@App\Service\TemplateUpdate\LegacyFlatPayloadNormalizerStrategy'
 
   # ── Instance ID request listener ─────────────────────────
   App\EventListener\InstanceRequestListener:
@@ -31,3 +38,11 @@ services:
   App\EventListener\InstanceDoctrineListener:
     tags:
       - { name: doctrine.event_listener, event: prePersist }
+
+  # ── Rate-limit subscriber (DDoS / brute-force protection) ─
+  App\EventSubscriber\RateLimitSubscriber:
+    arguments:
+      $apiLimiter: "@limiter.api"
+      $apiSensitiveLimiter: "@limiter.api_sensitive"
+    tags:
+      - { name: kernel.event_subscriber }

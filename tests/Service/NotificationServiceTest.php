@@ -10,6 +10,9 @@ use App\Repository\InboxNotificationRepository;
 use App\Repository\NotificationTemplateRepository;
 use App\Service\NotificationService;
 use App\Service\RequestAccessTemplateUpdater;
+use App\Service\TemplateUpdate\ChannelsPayloadNormalizerStrategy;
+use App\Service\TemplateUpdate\LegacyFlatPayloadNormalizerStrategy;
+use App\Service\TemplateUpdate\TemplatePayloadNormalizer;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -27,7 +30,13 @@ class NotificationServiceTest extends TestCase
         $this->service = new NotificationService(
             $this->templateRepository,
             $this->inboxRepository,
-            new RequestAccessTemplateUpdater([]),
+            new RequestAccessTemplateUpdater(
+                [],
+                new TemplatePayloadNormalizer([
+                    new ChannelsPayloadNormalizerStrategy(),
+                    new LegacyFlatPayloadNormalizerStrategy(),
+                ]),
+            ),
         );
     }
 
