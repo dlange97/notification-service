@@ -8,6 +8,7 @@ use App\Entity\InboxNotification;
 use App\Entity\NotificationTemplate;
 use App\Repository\InboxNotificationRepository;
 use App\Repository\NotificationTemplateRepository;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 class NotificationService
 {
@@ -28,7 +29,14 @@ class NotificationService
         $template = new NotificationTemplate();
         $template->setTemplateKey(NotificationTemplate::REQUEST_ACCESS_KEY);
 
-        $this->templateRepository->save($template, true);
+        try {
+            $this->templateRepository->save($template, true);
+        } catch (UniqueConstraintViolationException) {
+            $template = $this->templateRepository->findByKey(NotificationTemplate::REQUEST_ACCESS_KEY);
+            if ($template === null) {
+                throw new \RuntimeException('Failed to get or create request-access notification template.');
+            }
+        }
 
         return $template;
     }

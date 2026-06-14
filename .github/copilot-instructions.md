@@ -66,3 +66,69 @@ You are an expert Backend Architect specializing in PHP 8.3+, Symfony 7+, and Di
 - Validate both API behavior and worker behavior when message-handling logic is touched.
 - Preserve channel template payload shape expected by request-access and other upstream flows.
 - Confirm inbox read/list/clear semantics remain stable after changes.
+
+# Backend Controller Rules
+
+Controllers are **thin adapters** between HTTP and the service layer.
+They must **not** contain business logic, SQL, data transformation, or validation beyond parsing HTTP input.
+
+## Allowed in a controller
+
+- Reading request parameters (`$request->query->get(...)`, `$request->getContent()`, etc.)
+- Calling a **single service or repository** method per action
+- Mapping domain exceptions to HTTP status codes
+- Returning `JsonResponse` / `Response`
+
+## Forbidden in a controller
+
+- SQL queries (`$this->connection->fetchAllAssociative(...)` etc.) → move to a **Repository**
+- Business logic (calculations, validation, branching on domain state) → move to a **Service**
+- Entity creation or mutation → move to a **Service**
+- Transaction management (`beginTransaction` / `flush` / `commit`) → move to a **Service**
+- Private helper methods that contain logic → move to a **Service**
+- Direct injection of `Doctrine\DBAL\Connection` or `EntityManagerInterface` for data access → use a **Repository** instead
+
+## Correct example
+
+```php
+// GOOD – thin controller
+public function complete(string $hash, Request $request): JsonResponse
+{
+    try {
+        $invite = $this->checkoutService->findValidInvite($hash);
+        $result = $this->checkoutService->completeCheckout($invite, json_decode($request->getContent(), true) ?? []);
+    } catch (BadRequestHttpException $e) {
+        return $this->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+    }
+
+    return $this->json($result, Response::HTTP_CREATED);
+}
+```
+
+```php
+// BAD – logic in controller
+public function complete(string $hash, Request $request): JsonResponse
+{
+    $data = json_decode($request->getContent(), true) ?? [];
+    if (empty($data['adminEmail'])) {
+        return $this->json(['error' => 'adminEmail is required'], 400);
+    }
+    $user = new User();
+    $user->setEmail($data['adminEmail']);
+}
+```
+
+## Service / Repository split
+
+| Concern                       | Goes in      |
+| ----------------------------- | ------------ |
+| Database queries              | `Repository` |
+| Business rules & validation   | `Service`    |
+| Entity factory / aggregation  | `Service`    |
+| HTTP request/response mapping | `Controller` |
+
+## Testing
+
+- Every `Service` must have a corresponding `tests/Service/*Test.php` unit test
+- Unit tests mock all dependencies; no database is required
+- Controllers do **not** need unit tests; cover them with integration/functional tests if needed

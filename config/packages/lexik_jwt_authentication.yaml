@@ -3,3 +3,12 @@ lexik_jwt_authentication:
   public_key: "%env(resolve:JWT_PUBLIC_KEY)%"
   pass_phrase: "%env(JWT_PASSPHRASE)%"
   user_id_claim: email
+  # Accept JWT from either Authorization header or httpOnly cookie.
+  token_extractors:
+    authorization_header:
+      enabled: true
+      prefix: Bearer
+      name: Authorization
+    cookie:
+      enabled: true
+      name: jwt_token
