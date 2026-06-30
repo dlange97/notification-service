@@ -25,8 +25,7 @@ class InternalNotificationController extends AbstractController
     #[Route('/request-access', name: 'request_access', methods: ['POST'])]
     public function requestAccess(Request $request): JsonResponse
     {
-        $providedToken = (string) $request->headers->get('X-Internal-Token', '');
-        if ($providedToken === '' || !hash_equals($this->internalToken, $providedToken)) {
+        if (!$this->isAuthorized($request)) {
             return $this->json(['error' => 'Forbidden'], Response::HTTP_FORBIDDEN);
         }
 
@@ -44,5 +43,31 @@ class InternalNotificationController extends AbstractController
             'created' => $created,
             'type' => 'request-access',
         ], Response::HTTP_CREATED);
+    }
+
+    #[Route('/resource-shared', name: 'resource_shared', methods: ['POST'])]
+    public function resourceShared(Request $request): JsonResponse
+    {
+        if (!$this->isAuthorized($request)) {
+            return $this->json(['error' => 'Forbidden'], Response::HTTP_FORBIDDEN);
+        }
+
+        $payload = json_decode($request->getContent(), true) ?? [];
+        $ok = $this->notificationService->createResourceSharedNotification($payload);
+        if (!$ok) {
+            return $this->json(['error' => 'Invalid payload.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        return $this->json([
+            'created' => true,
+            'type' => 'resource-shared',
+        ], Response::HTTP_CREATED);
+    }
+
+    private function isAuthorized(Request $request): bool
+    {
+        $providedToken = (string) $request->headers->get('X-Internal-Token', '');
+
+        return $providedToken !== '' && hash_equals($this->internalToken, $providedToken);
     }
 }

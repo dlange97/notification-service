@@ -58,11 +58,36 @@ class NotificationController extends AbstractController
         return $this->json($this->notificationService->serializeTemplate($template));
     }
 
+    #[Route('/settings/templates', name: 'templates_list', methods: ['GET'])]
+    public function listTemplates(): JsonResponse
+    {
+        return $this->json([
+            'items' => $this->notificationService->getAllTemplates(),
+        ]);
+    }
+
+    #[Route('/settings/templates/{templateKey}', name: 'template_get', methods: ['GET'])]
+    public function getTemplate(string $templateKey): JsonResponse
+    {
+        $template = $this->notificationService->getTemplate($templateKey);
+
+        return $this->json($this->notificationService->serializeTemplate($template));
+    }
+
     #[Route('/settings/template/request-access', name: 'request_access_template_update', methods: ['PUT'])]
     public function updateRequestAccessTemplate(Request $request): JsonResponse
     {
         $payload = json_decode($request->getContent(), true) ?? [];
         $template = $this->notificationService->updateRequestAccessTemplate($payload);
+
+        return $this->json($this->notificationService->serializeTemplate($template));
+    }
+
+    #[Route('/settings/templates/{templateKey}', name: 'template_update', methods: ['PUT'])]
+    public function updateTemplate(Request $request, string $templateKey): JsonResponse
+    {
+        $payload = json_decode($request->getContent(), true) ?? [];
+        $template = $this->notificationService->updateTemplate($templateKey, $payload);
 
         return $this->json($this->notificationService->serializeTemplate($template));
     }

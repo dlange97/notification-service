@@ -13,6 +13,13 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
 final class NotificationService
 {
+    private const RESOURCE_SHARED_KEY_MAP = [
+        'note' => 'resource-shared-note',
+        'todo' => 'resource-shared-todo',
+        'shopping-list' => 'resource-shared-shopping-list',
+        'event' => 'resource-shared-event',
+    ];
+
     /**
      * @param iterable<NotificationTemplateChannelSerializerInterface> $templateChannelSerializers
      */
@@ -24,22 +31,81 @@ final class NotificationService
     ) {
     }
 
+    /** @return list<string> */
+    public function getSupportedTemplateKeys(): array
+    {
+        return array_keys($this->templateDefaults());
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function getAllTemplates(): array
+    {
+        $items = [];
+        foreach ($this->getSupportedTemplateKeys() as $key) {
+            $items[] = $this->serializeTemplate($this->getOrCreateTemplate($key));
+        }
+
+        return $items;
+    }
+
+    public function getTemplate(string $templateKey): NotificationTemplate
+    {
+        return $this->getOrCreateTemplate($templateKey);
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function updateTemplate(string $templateKey, array $payload): NotificationTemplate
+    {
+        $template = $this->getOrCreateTemplate($templateKey);
+
+        $this->requestAccessTemplateUpdater->update($template, $payload);
+
+        $this->templateRepository->save($template, true);
+
+        return $template;
+    }
+
     public function getOrCreateRequestAccessTemplate(): NotificationTemplate
     {
-        $template = $this->templateRepository->findByKey(NotificationTemplate::REQUEST_ACCESS_KEY);
+        return $this->getOrCreateTemplate(NotificationTemplate::REQUEST_ACCESS_KEY);
+    }
+
+    public function getResourceSharedTemplateKeyForType(string $resourceType): ?string
+    {
+        return self::RESOURCE_SHARED_KEY_MAP[$resourceType] ?? null;
+    }
+
+    public function getOrCreateTemplate(string $templateKey): NotificationTemplate
+    {
+        $defaults = $this->templateDefaults()[$templateKey] ?? null;
+        if ($defaults === null) {
+            throw new \InvalidArgumentException(sprintf('Unsupported notification template key "%s".', $templateKey));
+        }
+
+        $template = $this->templateRepository->findByKey($templateKey);
         if ($template) {
             return $template;
         }
 
         $template = new NotificationTemplate();
-        $template->setTemplateKey(NotificationTemplate::REQUEST_ACCESS_KEY);
+        $template
+            ->setTemplateKey($templateKey)
+            ->setInboxEnabled((bool) $defaults['inbox']['enabled'])
+            ->setInboxTitle((string) $defaults['inbox']['title'])
+            ->setInboxBody((string) $defaults['inbox']['body'])
+            ->setEmailEnabled((bool) $defaults['email']['enabled'])
+            ->setEmailTitle((string) $defaults['email']['title'])
+            ->setEmailBody((string) $defaults['email']['body'])
+            ->setPushEnabled((bool) $defaults['push']['enabled'])
+            ->setPushTitle((string) $defaults['push']['title'])
+            ->setPushBody((string) $defaults['push']['body']);
 
         try {
             $this->templateRepository->save($template, true);
         } catch (UniqueConstraintViolationException) {
-            $template = $this->templateRepository->findByKey(NotificationTemplate::REQUEST_ACCESS_KEY);
+            $template = $this->templateRepository->findByKey($templateKey);
             if ($template === null) {
-                throw new \RuntimeException('Failed to get or create request-access notification template.');
+                throw new \RuntimeException(sprintf('Failed to get or create notification template "%s".', $templateKey));
             }
         }
 
@@ -49,13 +115,7 @@ final class NotificationService
     /** @param array<string, mixed> $payload */
     public function updateRequestAccessTemplate(array $payload): NotificationTemplate
     {
-        $template = $this->getOrCreateRequestAccessTemplate();
-
-        $this->requestAccessTemplateUpdater->update($template, $payload);
-
-        $this->templateRepository->save($template, true);
-
-        return $template;
+        return $this->updateTemplate(NotificationTemplate::REQUEST_ACCESS_KEY, $payload);
     }
 
     /**
@@ -92,6 +152,52 @@ final class NotificationService
         }
 
         return $created;
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function createResourceSharedNotification(array $payload): bool
+    {
+        $resourceType = trim((string) ($payload['resourceType'] ?? ''));
+        $templateKey = $this->getResourceSharedTemplateKeyForType($resourceType);
+        if ($templateKey === null) {
+            return false;
+        }
+
+        $recipientUserId = trim((string) ($payload['recipientUserId'] ?? ''));
+        if ($recipientUserId === '') {
+            return false;
+        }
+
+        $template = $this->getOrCreateTemplate($templateKey);
+        if (!$template->isInboxEnabled()) {
+            return true;
+        }
+
+        $resourceName = trim((string) ($payload['resourceName'] ?? '')); 
+        $sharedBy = is_array($payload['sharedBy'] ?? null) ? $payload['sharedBy'] : [];
+        $context = [
+            'resourceType' => $resourceType,
+            'resourceName' => $resourceName,
+            'sharedByUserId' => (string) ($sharedBy['userId'] ?? ''),
+        ];
+
+        $notification = new InboxNotification();
+        $notification
+            ->setRecipientUserId($recipientUserId)
+            ->setRecipientEmail((string) ($payload['recipientEmail'] ?? ''))
+            ->setType($templateKey)
+            ->setTitle($this->renderTemplate($template->getInboxTitle(), $context))
+            ->setBody($this->renderTemplate($template->getInboxBody(), $context))
+            ->setPayload([
+                'resourceType' => $resourceType,
+                'resourceName' => $resourceName,
+                'sharedBy' => $sharedBy,
+                'sharedAt' => (new \DateTimeImmutable())->format('c'),
+            ]);
+
+        $this->inboxRepository->save($notification, true);
+
+        return true;
     }
 
     /** @param array<string, mixed> $data */
@@ -197,8 +303,105 @@ final class NotificationService
             '{{firstName}}' => (string) ($requester['firstName'] ?? ''),
             '{{lastName}}' => (string) ($requester['lastName'] ?? ''),
             '{{message}}' => (string) ($requester['message'] ?? ''),
+            '{{resourceType}}' => (string) ($requester['resourceType'] ?? ''),
+            '{{resourceName}}' => (string) ($requester['resourceName'] ?? ''),
+            '{{sharedByUserId}}' => (string) ($requester['sharedByUserId'] ?? ''),
         ];
 
         return strtr($template, $map);
+    }
+
+    /**
+     * @return array<string, array<string, array{enabled: bool, title: string, body: string}>>
+     */
+    private function templateDefaults(): array
+    {
+        return [
+            NotificationTemplate::REQUEST_ACCESS_KEY => [
+                'inbox' => [
+                    'enabled' => true,
+                    'title' => 'Nowy wniosek o dostęp do aplikacji',
+                    'body' => "Użytkownik {{email}} poprosił o dostęp do aplikacji.\nImię i nazwisko: {{firstName}} {{lastName}}\nWiadomość: {{message}}",
+                ],
+                'email' => [
+                    'enabled' => false,
+                    'title' => 'Request access to My Dashboard',
+                    'body' => "User {{email}} requested access.\nName: {{firstName}} {{lastName}}\nMessage: {{message}}",
+                ],
+                'push' => [
+                    'enabled' => false,
+                    'title' => 'Nowy request access',
+                    'body' => 'Użytkownik {{email}} poprosił o dostęp.',
+                ],
+            ],
+            'resource-shared-note' => [
+                'inbox' => [
+                    'enabled' => true,
+                    'title' => 'Udostępniono notatkę: {{resourceName}}',
+                    'body' => 'Użytkownik {{sharedByUserId}} udostępnił Ci notatkę {{resourceName}}.',
+                ],
+                'email' => [
+                    'enabled' => false,
+                    'title' => 'A note was shared with you',
+                    'body' => 'User {{sharedByUserId}} shared note {{resourceName}} with you.',
+                ],
+                'push' => [
+                    'enabled' => true,
+                    'title' => 'Nowa współdzielona notatka',
+                    'body' => '{{resourceName}}',
+                ],
+            ],
+            'resource-shared-todo' => [
+                'inbox' => [
+                    'enabled' => true,
+                    'title' => 'Udostępniono zadanie: {{resourceName}}',
+                    'body' => 'Użytkownik {{sharedByUserId}} udostępnił Ci zadanie {{resourceName}}.',
+                ],
+                'email' => [
+                    'enabled' => false,
+                    'title' => 'A todo item was shared with you',
+                    'body' => 'User {{sharedByUserId}} shared todo {{resourceName}} with you.',
+                ],
+                'push' => [
+                    'enabled' => true,
+                    'title' => 'Nowe współdzielone zadanie',
+                    'body' => '{{resourceName}}',
+                ],
+            ],
+            'resource-shared-shopping-list' => [
+                'inbox' => [
+                    'enabled' => true,
+                    'title' => 'Udostępniono listę zakupów: {{resourceName}}',
+                    'body' => 'Użytkownik {{sharedByUserId}} udostępnił Ci listę zakupów {{resourceName}}.',
+                ],
+                'email' => [
+                    'enabled' => false,
+                    'title' => 'A shopping list was shared with you',
+                    'body' => 'User {{sharedByUserId}} shared shopping list {{resourceName}} with you.',
+                ],
+                'push' => [
+                    'enabled' => true,
+                    'title' => 'Nowa współdzielona lista zakupów',
+                    'body' => '{{resourceName}}',
+                ],
+            ],
+            'resource-shared-event' => [
+                'inbox' => [
+                    'enabled' => true,
+                    'title' => 'Udostępniono wydarzenie: {{resourceName}}',
+                    'body' => 'Użytkownik {{sharedByUserId}} udostępnił Ci wydarzenie {{resourceName}}.',
+                ],
+                'email' => [
+                    'enabled' => false,
+                    'title' => 'An event was shared with you',
+                    'body' => 'User {{sharedByUserId}} shared event {{resourceName}} with you.',
+                ],
+                'push' => [
+                    'enabled' => true,
+                    'title' => 'Nowe współdzielone wydarzenie',
+                    'body' => '{{resourceName}}',
+                ],
+            ],
+        ];
     }
 }
