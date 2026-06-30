@@ -136,6 +136,54 @@ class NotificationServiceTest extends TestCase
         $this->assertSame(2, $created);
     }
 
+    public function testCreateUserInvitedNotificationRendersInviteLink(): void
+    {
+        // findByKey returns null so the service builds the template from defaults,
+        // which include the {{inviteLink}} placeholder.
+        $this->templateRepository->method('findByKey')->willReturn(null);
+
+        $this->inboxRepository->expects($this->once())
+            ->method('save')
+            ->with(
+                $this->callback(function (InboxNotification $notification): bool {
+                    $payload = $notification->getPayload();
+
+                    return str_contains($notification->getBody(), 'http://app.example.test/set-password/abc123')
+                        && $notification->getType() === 'user-invited'
+                        && is_array($payload)
+                        && ($payload['inviteLink'] ?? null) === 'http://app.example.test/set-password/abc123'
+                        && ($payload['inviteReference'] ?? null) === 'ref-123';
+                }),
+                true,
+            );
+
+        $result = $this->service->createUserInvitedNotification([
+            'recipientUserId' => 'user-1',
+            'recipientEmail' => 'invitee@example.com',
+            'invitedUserEmail' => 'invitee@example.com',
+            'inviteLink' => 'http://app.example.test/set-password/abc123',
+            'inviteReference' => 'ref-123',
+            'invitedBy' => [
+                'userId' => 'admin-1',
+                'email' => 'admin@example.com',
+                'firstName' => 'Ad',
+                'lastName' => 'Min',
+            ],
+        ]);
+
+        $this->assertTrue($result);
+    }
+
+    public function testCreateUserInvitedNotificationReturnsFalseWhenRecipientMissing(): void
+    {
+        $this->inboxRepository->expects($this->never())->method('save');
+
+        $this->assertFalse($this->service->createUserInvitedNotification([
+            'recipientUserId' => '',
+            'recipientEmail' => '',
+        ]));
+    }
+
     public function testMarkAsReadSetsFlagAndPersists(): void
     {
         $notification = new InboxNotification();

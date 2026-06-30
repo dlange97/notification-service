@@ -226,10 +226,14 @@ final class NotificationService
             'invitedByUserId' => (string) ($invitedBy['userId'] ?? ''),
             'invitedByEmail' => (string) ($invitedBy['email'] ?? ''),
             'invitedByName' => trim((string) (($invitedBy['firstName'] ?? '') . ' ' . ($invitedBy['lastName'] ?? ''))),
+            'inviteLink' => (string) ($payload['inviteLink'] ?? ''),
+            'inviteReference' => (string) ($payload['inviteReference'] ?? ''),
         ];
         $notificationPayload = [
             'invitedBy' => $invitedBy,
             'invitedUserEmail' => $context['invitedUserEmail'],
+            'inviteLink' => $context['inviteLink'],
+            'inviteReference' => $context['inviteReference'],
             'invitedAt' => (new \DateTimeImmutable())->format('c'),
         ];
 
@@ -361,6 +365,8 @@ final class NotificationService
             '{{invitedByUserId}}' => (string) ($requester['invitedByUserId'] ?? ''),
             '{{invitedByEmail}}' => (string) ($requester['invitedByEmail'] ?? ''),
             '{{invitedByName}}' => (string) ($requester['invitedByName'] ?? ''),
+            '{{inviteLink}}' => (string) ($requester['inviteLink'] ?? ''),
+            '{{inviteReference}}' => (string) ($requester['inviteReference'] ?? ''),
         ];
 
         return strtr($template, $map);
@@ -461,17 +467,17 @@ final class NotificationService
                 'inbox' => [
                     'enabled' => true,
                     'title' => 'Zaproszenie do aplikacji',
-                    'body' => 'Konto {{invitedUserEmail}} zostało utworzone. Zaprosił: {{invitedByName}} ({{invitedByEmail}}).',
+                    'body' => 'Konto {{invitedUserEmail}} zostało utworzone. Ustaw hasło, aby się zalogować: {{inviteLink}}',
                 ],
                 'email' => [
                     'enabled' => true,
                     'title' => 'You were invited to My Dashboard',
-                    'body' => 'Your account {{invitedUserEmail}} was created by {{invitedByName}} ({{invitedByEmail}}).',
+                    'body' => 'Your account {{invitedUserEmail}} was created by {{invitedByName}} ({{invitedByEmail}}). Set your password to sign in: {{inviteLink}}',
                 ],
                 'push' => [
                     'enabled' => false,
                     'title' => 'Invitation sent',
-                    'body' => 'Your account is ready.',
+                    'body' => 'Your account is ready. Set your password to sign in.',
                 ],
             ],
         ];
