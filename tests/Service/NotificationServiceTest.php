@@ -9,6 +9,7 @@ use App\Entity\NotificationTemplate;
 use App\Repository\InboxNotificationRepository;
 use App\Repository\NotificationTemplateRepository;
 use App\Service\NotificationService;
+use App\Service\NotificationTransportService;
 use App\Service\RequestAccessTemplateUpdater;
 use App\Service\TemplateSerialization\EmailTemplateChannelSerializer;
 use App\Service\TemplateSerialization\InboxTemplateChannelSerializer;
@@ -23,12 +24,17 @@ class NotificationServiceTest extends TestCase
 {
     private NotificationTemplateRepository&MockObject $templateRepository;
     private InboxNotificationRepository&MockObject $inboxRepository;
+    private NotificationTransportService&MockObject $notificationTransport;
     private NotificationService $service;
 
     protected function setUp(): void
     {
         $this->templateRepository = $this->createMock(NotificationTemplateRepository::class);
         $this->inboxRepository = $this->createMock(InboxNotificationRepository::class);
+        $this->notificationTransport = $this->createMock(NotificationTransportService::class);
+
+        $this->notificationTransport->method('sendEmail')->willReturn(true);
+        $this->notificationTransport->method('sendPush')->willReturn(true);
 
         $this->service = new NotificationService(
             $this->templateRepository,
@@ -45,6 +51,7 @@ class NotificationServiceTest extends TestCase
                 new EmailTemplateChannelSerializer(),
                 new PushTemplateChannelSerializer(),
             ],
+            $this->notificationTransport,
         );
     }
 

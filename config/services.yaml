@@ -31,6 +31,15 @@ services:
         - '@App\Service\TemplateSerialization\EmailTemplateChannelSerializer'
         - '@App\Service\TemplateSerialization\PushTemplateChannelSerializer'
 
+  App\Service\NotificationTransportService:
+    arguments:
+      $emailProvider: '%env(string:NOTIFICATION_EMAIL_PROVIDER)%'
+      $emailApiUrl: '%env(string:NOTIFICATION_EMAIL_API_URL)%'
+      $emailApiKey: '%env(string:NOTIFICATION_EMAIL_API_KEY)%'
+      $pushProvider: '%env(string:NOTIFICATION_PUSH_PROVIDER)%'
+      $pushApiUrl: '%env(string:NOTIFICATION_PUSH_API_URL)%'
+      $pushApiKey: '%env(string:NOTIFICATION_PUSH_API_KEY)%'
+
   # ── Instance ID request listener ─────────────────────────
   App\EventListener\InstanceRequestListener:
     tags:

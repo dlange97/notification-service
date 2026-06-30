@@ -64,6 +64,25 @@ class InternalNotificationController extends AbstractController
         ], Response::HTTP_CREATED);
     }
 
+    #[Route('/user-invited', name: 'user_invited', methods: ['POST'])]
+    public function userInvited(Request $request): JsonResponse
+    {
+        if (!$this->isAuthorized($request)) {
+            return $this->json(['error' => 'Forbidden'], Response::HTTP_FORBIDDEN);
+        }
+
+        $payload = json_decode($request->getContent(), true) ?? [];
+        $ok = $this->notificationService->createUserInvitedNotification($payload);
+        if (!$ok) {
+            return $this->json(['error' => 'Invalid payload.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        return $this->json([
+            'created' => true,
+            'type' => 'user-invited',
+        ], Response::HTTP_CREATED);
+    }
+
     private function isAuthorized(Request $request): bool
     {
         $providedToken = (string) $request->headers->get('X-Internal-Token', '');

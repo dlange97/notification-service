@@ -28,6 +28,7 @@ final class NotificationService
         private readonly InboxNotificationRepository $inboxRepository,
         private readonly RequestAccessTemplateUpdater $requestAccessTemplateUpdater,
         private readonly iterable $templateChannelSerializers,
+        private readonly NotificationTransportService $notificationTransport,
     ) {
     }
 
@@ -125,26 +126,31 @@ final class NotificationService
     public function createRequestAccessNotifications(array $recipients, array $requester): int
     {
         $template = $this->getOrCreateRequestAccessTemplate();
-        if (!$template->isInboxEnabled()) {
-            return 0;
-        }
 
         $created = 0;
         foreach ($recipients as $recipient) {
-            $notification = new InboxNotification();
-            $notification
-                ->setRecipientUserId((string) $recipient['id'])
-                ->setRecipientEmail((string) $recipient['email'])
-                ->setType(NotificationTemplate::REQUEST_ACCESS_KEY)
-                ->setTitle($this->renderTemplate($template->getInboxTitle(), $requester))
-                ->setBody($this->renderTemplate($template->getInboxBody(), $requester))
-                ->setPayload([
-                    'requester' => $requester,
-                    'requestedAt' => (new \DateTimeImmutable())->format('c'),
-                ]);
+            $recipientUserId = (string) $recipient['id'];
+            $recipientEmail = (string) $recipient['email'];
+            $payload = [
+                'requester' => $requester,
+                'requestedAt' => (new \DateTimeImmutable())->format('c'),
+            ];
 
-            $this->inboxRepository->save($notification);
-            ++$created;
+            if ($template->isInboxEnabled()) {
+                $notification = new InboxNotification();
+                $notification
+                    ->setRecipientUserId($recipientUserId)
+                    ->setRecipientEmail($recipientEmail)
+                    ->setType(NotificationTemplate::REQUEST_ACCESS_KEY)
+                    ->setTitle($this->renderTemplate($template->getInboxTitle(), $requester))
+                    ->setBody($this->renderTemplate($template->getInboxBody(), $requester))
+                    ->setPayload($payload);
+
+                $this->inboxRepository->save($notification);
+                ++$created;
+            }
+
+            $this->dispatchConfiguredChannels($template, $recipientUserId, $recipientEmail, $requester, $payload);
         }
 
         if ($created > 0) {
@@ -169,9 +175,6 @@ final class NotificationService
         }
 
         $template = $this->getOrCreateTemplate($templateKey);
-        if (!$template->isInboxEnabled()) {
-            return true;
-        }
 
         $resourceName = trim((string) ($payload['resourceName'] ?? '')); 
         $sharedBy = is_array($payload['sharedBy'] ?? null) ? $payload['sharedBy'] : [];
@@ -180,22 +183,70 @@ final class NotificationService
             'resourceName' => $resourceName,
             'sharedByUserId' => (string) ($sharedBy['userId'] ?? ''),
         ];
+        $notificationPayload = [
+            'resourceType' => $resourceType,
+            'resourceName' => $resourceName,
+            'sharedBy' => $sharedBy,
+            'sharedAt' => (new \DateTimeImmutable())->format('c'),
+        ];
 
-        $notification = new InboxNotification();
-        $notification
-            ->setRecipientUserId($recipientUserId)
-            ->setRecipientEmail((string) ($payload['recipientEmail'] ?? ''))
-            ->setType($templateKey)
-            ->setTitle($this->renderTemplate($template->getInboxTitle(), $context))
-            ->setBody($this->renderTemplate($template->getInboxBody(), $context))
-            ->setPayload([
-                'resourceType' => $resourceType,
-                'resourceName' => $resourceName,
-                'sharedBy' => $sharedBy,
-                'sharedAt' => (new \DateTimeImmutable())->format('c'),
-            ]);
+        $recipientEmail = (string) ($payload['recipientEmail'] ?? '');
 
-        $this->inboxRepository->save($notification, true);
+        if ($template->isInboxEnabled()) {
+            $notification = new InboxNotification();
+            $notification
+                ->setRecipientUserId($recipientUserId)
+                ->setRecipientEmail($recipientEmail)
+                ->setType($templateKey)
+                ->setTitle($this->renderTemplate($template->getInboxTitle(), $context))
+                ->setBody($this->renderTemplate($template->getInboxBody(), $context))
+                ->setPayload($notificationPayload);
+
+            $this->inboxRepository->save($notification, true);
+        }
+
+        $this->dispatchConfiguredChannels($template, $recipientUserId, $recipientEmail, $context, $notificationPayload);
+
+        return true;
+    }
+
+    /** @param array<string, mixed> $payload */
+    public function createUserInvitedNotification(array $payload): bool
+    {
+        $recipientUserId = trim((string) ($payload['recipientUserId'] ?? ''));
+        $recipientEmail = trim((string) ($payload['recipientEmail'] ?? ''));
+        if ($recipientUserId === '' || $recipientEmail === '') {
+            return false;
+        }
+
+        $template = $this->getOrCreateTemplate('user-invited');
+        $invitedBy = is_array($payload['invitedBy'] ?? null) ? $payload['invitedBy'] : [];
+        $context = [
+            'invitedUserEmail' => (string) ($payload['invitedUserEmail'] ?? $recipientEmail),
+            'invitedByUserId' => (string) ($invitedBy['userId'] ?? ''),
+            'invitedByEmail' => (string) ($invitedBy['email'] ?? ''),
+            'invitedByName' => trim((string) (($invitedBy['firstName'] ?? '') . ' ' . ($invitedBy['lastName'] ?? ''))),
+        ];
+        $notificationPayload = [
+            'invitedBy' => $invitedBy,
+            'invitedUserEmail' => $context['invitedUserEmail'],
+            'invitedAt' => (new \DateTimeImmutable())->format('c'),
+        ];
+
+        if ($template->isInboxEnabled()) {
+            $notification = new InboxNotification();
+            $notification
+                ->setRecipientUserId($recipientUserId)
+                ->setRecipientEmail($recipientEmail)
+                ->setType('user-invited')
+                ->setTitle($this->renderTemplate($template->getInboxTitle(), $context))
+                ->setBody($this->renderTemplate($template->getInboxBody(), $context))
+                ->setPayload($notificationPayload);
+
+            $this->inboxRepository->save($notification, true);
+        }
+
+        $this->dispatchConfiguredChannels($template, $recipientUserId, $recipientEmail, $context, $notificationPayload);
 
         return true;
     }
@@ -306,6 +357,10 @@ final class NotificationService
             '{{resourceType}}' => (string) ($requester['resourceType'] ?? ''),
             '{{resourceName}}' => (string) ($requester['resourceName'] ?? ''),
             '{{sharedByUserId}}' => (string) ($requester['sharedByUserId'] ?? ''),
+            '{{invitedUserEmail}}' => (string) ($requester['invitedUserEmail'] ?? ''),
+            '{{invitedByUserId}}' => (string) ($requester['invitedByUserId'] ?? ''),
+            '{{invitedByEmail}}' => (string) ($requester['invitedByEmail'] ?? ''),
+            '{{invitedByName}}' => (string) ($requester['invitedByName'] ?? ''),
         ];
 
         return strtr($template, $map);
@@ -402,6 +457,53 @@ final class NotificationService
                     'body' => '{{resourceName}}',
                 ],
             ],
+            'user-invited' => [
+                'inbox' => [
+                    'enabled' => true,
+                    'title' => 'Zaproszenie do aplikacji',
+                    'body' => 'Konto {{invitedUserEmail}} zostało utworzone. Zaprosił: {{invitedByName}} ({{invitedByEmail}}).',
+                ],
+                'email' => [
+                    'enabled' => true,
+                    'title' => 'You were invited to My Dashboard',
+                    'body' => 'Your account {{invitedUserEmail}} was created by {{invitedByName}} ({{invitedByEmail}}).',
+                ],
+                'push' => [
+                    'enabled' => false,
+                    'title' => 'Invitation sent',
+                    'body' => 'Your account is ready.',
+                ],
+            ],
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $payload
+     */
+    private function dispatchConfiguredChannels(
+        NotificationTemplate $template,
+        string $recipientUserId,
+        string $recipientEmail,
+        array $context,
+        array $payload,
+    ): void {
+        if ($template->isEmailEnabled() && $recipientEmail !== '') {
+            $this->notificationTransport->sendEmail(
+                $recipientEmail,
+                $this->renderTemplate((string) ($template->getEmailTitle() ?? ''), $context),
+                $this->renderTemplate((string) ($template->getEmailBody() ?? ''), $context),
+                $payload,
+            );
+        }
+
+        if ($template->isPushEnabled() && $recipientUserId !== '') {
+            $this->notificationTransport->sendPush(
+                $recipientUserId,
+                $this->renderTemplate((string) ($template->getPushTitle() ?? ''), $context),
+                $this->renderTemplate((string) ($template->getPushBody() ?? ''), $context),
+                $payload,
+            );
+        }
     }
 }
