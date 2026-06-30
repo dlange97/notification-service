@@ -24,6 +24,13 @@ services:
         - '@App\Service\TemplateUpdate\ChannelsPayloadNormalizerStrategy'
         - '@App\Service\TemplateUpdate\LegacyFlatPayloadNormalizerStrategy'
 
+  App\Service\NotificationService:
+    arguments:
+      $templateChannelSerializers:
+        - '@App\Service\TemplateSerialization\InboxTemplateChannelSerializer'
+        - '@App\Service\TemplateSerialization\EmailTemplateChannelSerializer'
+        - '@App\Service\TemplateSerialization\PushTemplateChannelSerializer'
+
   # ── Instance ID request listener ─────────────────────────
   App\EventListener\InstanceRequestListener:
     tags:
