@@ -8,14 +8,19 @@ use App\Entity\InboxNotification;
 use App\Entity\NotificationTemplate;
 use App\Repository\InboxNotificationRepository;
 use App\Repository\NotificationTemplateRepository;
+use App\Service\TemplateSerialization\NotificationTemplateChannelSerializerInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 
-class NotificationService
+final class NotificationService
 {
+    /**
+     * @param iterable<NotificationTemplateChannelSerializerInterface> $templateChannelSerializers
+     */
     public function __construct(
         private readonly NotificationTemplateRepository $templateRepository,
         private readonly InboxNotificationRepository $inboxRepository,
         private readonly RequestAccessTemplateUpdater $requestAccessTemplateUpdater,
+        private readonly iterable $templateChannelSerializers,
     ) {
     }
 
@@ -172,25 +177,14 @@ class NotificationService
     /** @return array<string, mixed> */
     public function serializeTemplate(NotificationTemplate $template): array
     {
+        $channels = [];
+        foreach ($this->templateChannelSerializers as $serializer) {
+            $channels[$serializer->channel()] = $serializer->serialize($template);
+        }
+
         return [
             'key' => $template->getTemplateKey(),
-            'channels' => [
-                'inbox' => [
-                    'enabled' => $template->isInboxEnabled(),
-                    'title' => $template->getInboxTitle(),
-                    'body' => $template->getInboxBody(),
-                ],
-                'email' => [
-                    'enabled' => $template->isEmailEnabled(),
-                    'title' => $template->getEmailTitle(),
-                    'body' => $template->getEmailBody(),
-                ],
-                'push' => [
-                    'enabled' => $template->isPushEnabled(),
-                    'title' => $template->getPushTitle(),
-                    'body' => $template->getPushBody(),
-                ],
-            ],
+            'channels' => $channels,
             'updatedAt' => $template->getUpdatedAt()?->format('c'),
         ];
     }

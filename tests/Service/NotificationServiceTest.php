@@ -10,6 +10,9 @@ use App\Repository\InboxNotificationRepository;
 use App\Repository\NotificationTemplateRepository;
 use App\Service\NotificationService;
 use App\Service\RequestAccessTemplateUpdater;
+use App\Service\TemplateSerialization\EmailTemplateChannelSerializer;
+use App\Service\TemplateSerialization\InboxTemplateChannelSerializer;
+use App\Service\TemplateSerialization\PushTemplateChannelSerializer;
 use App\Service\TemplateUpdate\ChannelsPayloadNormalizerStrategy;
 use App\Service\TemplateUpdate\LegacyFlatPayloadNormalizerStrategy;
 use App\Service\TemplateUpdate\TemplatePayloadNormalizer;
@@ -37,6 +40,11 @@ class NotificationServiceTest extends TestCase
                     new LegacyFlatPayloadNormalizerStrategy(),
                 ]),
             ),
+            [
+                new InboxTemplateChannelSerializer(),
+                new EmailTemplateChannelSerializer(),
+                new PushTemplateChannelSerializer(),
+            ],
         );
     }
 
